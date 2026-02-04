@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>body { margin: 0; background: #ffdef2; overflow: hidden; }</style>
 </head>
@@ -9,45 +10,44 @@
 <script>
     const config = {
         type: Phaser.AUTO,
-        width: 800, 
-        height: 600,
-        physics: { 
-            default: 'arcade', 
-            arcade: { gravity: { y: 1200 }, debug: false } 
-        },
+        width: 800, height: 600,
+        physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player, platforms, cursors, enemies, castle, isGameOver = false;
+    let player, platforms, cursors, monsters, goal, isWon = false;
+    let canDoubleJump = false;
 
-    function preload() {}
+    function preload() {
+        // If you upload girl.png to GitHub, this will show her at the end!
+        this.load.image('asian_girl', 'girl.png'); 
+    }
 
     function create() {
-        const worldWidth = 4000;
+        const worldWidth = 4000; 
         this.physics.world.setBounds(0, 0, worldWidth, 650);
 
-        // --- 1. DRAW TEXTURES ---
-        // Player Heart
+        // --- 1. DRAW TEXTURES (Emergency Fallbacks) ---
+        // Heart Player
         let heartGfx = this.make.graphics({x: 0, y: 0, add: false});
         heartGfx.fillStyle(0xff69b4, 1);
         heartGfx.fillCircle(10, 10, 10); heartGfx.fillCircle(30, 10, 10);
         heartGfx.fillTriangle(0, 15, 40, 15, 20, 40);
         heartGfx.generateTexture('heart', 40, 40);
 
-        // Monster
+        // Monster (Sad Blue Square)
         let monsterGfx = this.make.graphics({x: 0, y: 0, add: false});
         monsterGfx.fillStyle(0x5dade2, 1); monsterGfx.fillRect(0, 0, 30, 30);
         monsterGfx.generateTexture('monster', 30, 30);
 
-        // Brick
+        // Pink Brick
         let brickGfx = this.make.graphics({x: 0, y: 0, add: false});
         brickGfx.fillStyle(0xffb6c1, 1); brickGfx.fillRect(0, 0, 40, 40);
         brickGfx.lineStyle(1, 0xffffff, 1); brickGfx.strokeRect(0, 0, 40, 40);
         brickGfx.generateTexture('brick', 40, 40);
 
-        // --- 2. BUILD LEVEL ---
+        // --- 2. BUILD THE LEVEL ---
         platforms = this.physics.add.staticGroup();
         for (let x = 0; x < worldWidth; x += 40) {
-            // Deadly Pits
-            if ((x > 1000 && x < 1300) ||
+            //

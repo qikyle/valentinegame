@@ -50,4 +50,95 @@
         // --- 2. BUILD THE LEVEL ---
         platforms = this.physics.add.staticGroup();
         for (let x = 0; x < worldWidth; x += 40) {
-            //
+            // DEADLY PITS (Gaps in the floor)
+            if ((x > 1200 && x < 1500) || (x > 2600 && x < 3000)) continue;
+            platforms.create(x, 580, 'brick');
+        }
+
+        // Floating Platforms
+        [800, 1600, 2200, 3100].forEach(x => {
+            platforms.create(x, 400, 'brick');
+            platforms.create(x + 40, 400, 'brick');
+        });
+
+        // --- 3. ENEMIES ---
+        monsters = this.physics.add.group();
+        [900, 1900, 3300].forEach(x => {
+            let m = monsters.create(x, 500, 'monster');
+            m.setBounce(1);
+            m.setCollideWorldBounds(true);
+            m.setVelocityX(-150);
+        });
+
+        // --- 4. PLAYER ---
+        player = this.physics.add.sprite(100, 450, 'heart');
+        player.setCollideWorldBounds(true);
+
+        // --- 5. THE GOAL (Castle + Girl) ---
+        goal = this.physics.add.staticSprite(3900, 500, 'brick').setTint(0xffd700).setScale(2);
+        if (this.textures.exists('asian_girl')) {
+            this.add.image(3900, 450, 'asian_girl').setScale(1.5);
+        }
+
+        // --- 6. CAMERA & PHYSICS ---
+        this.cameras.main.setBounds(0, 0, worldWidth, 600);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(monsters, platforms);
+        
+        // Death logic
+        this.physics.add.overlap(player, monsters, handleDeath, null, this);
+        this.physics.add.overlap(player, goal, handleWin, null, this);
+
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (isWon) return;
+
+        // Basic Movement
+        if (cursors.left.isDown) player.setVelocityX(-250);
+        else if (cursors.right.isDown) player.setVelocityX(250);
+        else player.setVelocityX(0);
+
+        // Jumping + Double Jump Logic
+        const didPressJump = Phaser.Input.Keyboard.JustDown(cursors.up);
+
+        if (player.body.touching.down) {
+            canDoubleJump = true;
+            if (didPressJump) player.setVelocityY(-600);
+        } else if (didPressJump && canDoubleJump) {
+            canDoubleJump = false;
+            player.setVelocityY(-500); // The second jump
+        }
+
+        // Check for falling in pit
+        if (player.y > 620) handleDeath.call(this);
+
+        // Monster AI (Turn around at edges)
+        monsters.children.iterate(m => {
+            if (m.body.blocked.left) m.setVelocityX(150);
+            if (m.body.blocked.right) m.setVelocityX(-150);
+        });
+    }
+
+    function handleDeath() {
+        this.cameras.main.shake(100, 0.01);
+        player.setPosition(100, 450);
+        player.setVelocity(0, 0);
+    }
+
+    function handleWin() {
+        if (isWon) return;
+        isWon = true;
+        this.physics.pause();
+        
+        this.add.text(400, 300, 'CONGRATS!\nWill you be my Valentine?', { 
+            fontSize: '40px', fill: '#ff0066', align: 'center', 
+            backgroundColor: '#ffffff', padding: 20, fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0);
+    }
+</script>
+</body>
+</html>

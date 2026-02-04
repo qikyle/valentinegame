@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>body { margin: 0; background: #ffdef2; overflow: hidden; }</style>
 </head>
@@ -8,82 +9,45 @@
 <script>
     const config = {
         type: Phaser.AUTO,
-        width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } },
+        width: 800, 
+        height: 600,
+        physics: { 
+            default: 'arcade', 
+            arcade: { gravity: { y: 1200 }, debug: false } 
+        },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player, platforms, cursors, enemies, castle;
+    let player, platforms, cursors, enemies, castle, isGameOver = false;
 
-    function preload() {
-        // Assets generated in 'create' to ensure it works on GitHub immediately
-    }
+    function preload() {}
 
     function create() {
         const worldWidth = 4000;
-        this.physics.world.setBounds(0, 0, worldWidth, 700);
+        this.physics.world.setBounds(0, 0, worldWidth, 650);
 
-        // --- 1. TEXTURES ---
-        // Heart Player
+        // --- 1. DRAW TEXTURES ---
+        // Player Heart
         let heartGfx = this.make.graphics({x: 0, y: 0, add: false});
         heartGfx.fillStyle(0xff69b4, 1);
         heartGfx.fillCircle(10, 10, 10); heartGfx.fillCircle(30, 10, 10);
         heartGfx.fillTriangle(0, 15, 40, 15, 20, 40);
         heartGfx.generateTexture('heart', 40, 40);
 
-        // Monster (Grumpy Blue Square)
+        // Monster
         let monsterGfx = this.make.graphics({x: 0, y: 0, add: false});
         monsterGfx.fillStyle(0x5dade2, 1); monsterGfx.fillRect(0, 0, 30, 30);
-        monsterGfx.fillStyle(0x000000, 1); monsterGfx.fillRect(5, 5, 5, 5); monsterGfx.fillRect(20, 5, 5, 5);
         monsterGfx.generateTexture('monster', 30, 30);
 
-        // Brick Platform
+        // Brick
         let brickGfx = this.make.graphics({x: 0, y: 0, add: false});
         brickGfx.fillStyle(0xffb6c1, 1); brickGfx.fillRect(0, 0, 40, 40);
         brickGfx.lineStyle(1, 0xffffff, 1); brickGfx.strokeRect(0, 0, 40, 40);
         brickGfx.generateTexture('brick', 40, 40);
 
-        // --- 2. THE WORLD ---
+        // --- 2. BUILD LEVEL ---
         platforms = this.physics.add.staticGroup();
         for (let x = 0; x < worldWidth; x += 40) {
-            // Deadly Gaps at 1200 and 2500
-            if ((x > 1200 && x < 1400) || (x > 2500 && x < 2800)) continue;
-            platforms.create(x, 580, 'brick');
-        }
-
-        // Floating Platforms
-        [600, 1000, 1500, 2000, 2300, 3000, 3300].forEach(x => {
-            platforms.create(x, 400, 'brick');
-            platforms.create(x+40, 400, 'brick');
-        });
-
-        // --- 3. ENEMIES ---
-        enemies = this.physics.add.group();
-        const enemySpawns = [800, 1600, 2200, 3200];
-        enemySpawns.forEach(x => {
-            let m = enemies.create(x, 500, 'monster');
-            m.setBounce(1);
-            m.setCollideWorldBounds(true);
-            m.setVelocityX(Phaser.Math.Between(-150, 150));
-        });
-
-        // --- 4. PLAYER & CAMERA ---
-        player = this.physics.add.sprite(100, 450, 'heart');
-        this.cameras.main.setBounds(0, 0, worldWidth, 600);
-        this.cameras.main.startFollow(player, true, 0.1, 0.1);
-
-        // --- 5. FINISH LINE ---
-        castle = this.physics.add.staticSprite(3900, 500, 'brick').setTint(0xffd700);
-
-        // --- 6. PHYSICS ---
-        this.physics.add.collider(player, platforms);
-        this.physics.add.collider(enemies, platforms);
-        this.physics.add.overlap(player, enemies, resetGame, null, this);
-        this.physics.add.overlap(player, castle, winGame, null, this);
-
-        cursors = this.input.keyboard.createCursorKeys();
-    }
-
-    function update() {
-        if (cursors.
+            // Deadly Pits
+            if ((x > 1000 && x < 1300) ||

@@ -1,99 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Will You Be My Valentine?</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
-    <style>
-        body { margin: 0; padding: 0; background-color: #ffdef2; overflow: hidden; }
-        canvas { display: block; margin: 0 auto; }
-    </style>
 </head>
-<body>
-
+<body style="margin: 0; background: #ffdef2;">
 <script>
     const config = {
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,
-        backgroundColor: '#ffdef2',
-        physics: {
-            default: 'arcade',
-            arcade: {
-                gravity: { y: 800 },
-                debug: false
-            }
-        },
-        scene: {
-            preload: preload,
-            create: create,
-            update: update
-        }
+        width: 800, height: 600,
+        physics: { default: 'arcade', arcade: { gravity: { y: 600 } } },
+        scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player;
-    let platforms;
-    let cursors;
-    let heart;
-    let gameText;
+    let player, platforms, cursors, heart;
 
     function preload() {
-        // Character: Pixel Art Asian Girl (Using a placeholder sprite)
-        this.load.image('girl', 'https://play.rosebud.ai/assets/pixel_girl_front.png?mEun');
-        
-        // Environment
-        this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
-        this.load.image('heart', 'https://labs.phaser.io/assets/sprites/apple.png'); // Placeholder for heart
+        // We are leaving this empty to prove the game works without external files!
     }
 
     function create() {
-        // 1. Create Platforms
         platforms = this.physics.add.staticGroup();
 
-        // The Ground
-        platforms.create(400, 568, 'ground').setScale(2).refreshBody().setTint(0xff69b4);
+        // Creating a "Ground" using a pink rectangle (No image needed!)
+        let ground = this.add.rectangle(400, 580, 800, 40, 0xff69b4);
+        this.physics.add.existing(ground, true);
+        platforms.add(ground);
 
-        // Floating Platforms (The "Mario" level style)
-        platforms.create(600, 400, 'ground').setTint(0xff85c1);
-        platforms.create(200, 300, 'ground').setTint(0xff85c1);
-        platforms.create(750, 220, 'ground').setTint(0xff85c1);
+        // Creating a platform
+        let plat1 = this.add.rectangle(600, 400, 200, 20, 0xff69b4);
+        this.physics.add.existing(plat1, true);
+        platforms.add(plat1);
 
-        // 2. The Player (The Girl)
-        player = this.physics.add.sprite(100, 450, 'girl');
-        player.setBounce(0.1);
+        // The Player: A Purple Square (Representing your Pixel Girl for now)
+        player = this.physics.add.sprite(100, 450);
+        player.setOrigin(0.5);
+        // Create a simple rectangle graphics for the player
+        let playerGraphics = this.make.graphics({x: 0, y: 0, add: false});
+        playerGraphics.fillStyle(0x9b59b6, 1);
+        playerGraphics.fillRect(0, 0, 32, 48);
+        playerGraphics.generateTexture('girl_temp', 32, 48);
+        player.setTexture('girl_temp');
+
         player.setCollideWorldBounds(true);
-        player.setScale(1.5); // Making her a bit bigger
 
-        // 3. The Goal (The Heart)
-        heart = this.physics.add.sprite(750, 150, 'heart');
-        heart.setTint(0xff0000);
-        this.physics.add.collider(heart, platforms);
+        // The Goal: A Red Square (Representing the Heart)
+        heart = this.physics.add.sprite(700, 300);
+        let heartGraphics = this.make.graphics({x: 0, y: 0, add: false});
+        heartGraphics.fillStyle(0xff0000, 1);
+        heartGraphics.fillRect(0, 0, 30, 30);
+        heartGraphics.generateTexture('heart_temp', 30, 30);
+        heart.setTexture('heart_temp');
 
-        // 4. Interactions
         this.physics.add.collider(player, platforms);
-        this.physics.add.overlap(player, heart, winGame, null, this);
+        this.physics.add.overlap(player, heart, () => {
+            this.add.text(200, 250, 'Congrats on being\nmy Valentine!', { 
+                fontSize: '40px', fill: '#ff0066', backgroundColor: '#ffffff' 
+            });
+            this.physics.pause();
+        }, null, this);
 
-        // 5. Controls
         cursors = this.input.keyboard.createCursorKeys();
-
-        // 6. Instructions on screen
-        gameText = this.add.text(16, 16, 'Reach the heart!', { 
-            fontSize: '24px', 
-            fill: '#d63384',
-            fontStyle: 'bold' 
-        });
     }
 
     function update() {
-        // Desktop Controls (Arrows)
-        if (cursors.left.isDown) {
-            player.setVelocityX(-200);
-        } else if (cursors.right.isDown) {
-            player.setVelocityX(200);
-        } else {
-            player.setVelocityX(0);
-        }
-
-        if (cursors.up.isDown && player.body.
+        if (cursors.left.isDown) player.setVelocityX(-160);
+        else if (cursors.right.isDown) player.setVelocityX(160);
+        else player.setVelocityX(0);
+        if (cursors.up.isDown && player.body.touching.down) player.setVelocityY(-400);
+    }
+</script>
+</body>
+</html>

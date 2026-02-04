@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>body { margin: 0; background: #ffdef2; overflow: hidden; }</style>
 </head>
@@ -11,134 +10,56 @@
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
     let player, platforms, cursors, monsters, goal, isWon = false;
-    let canDoubleJump = false;
 
-    function preload() {
-        // If you upload girl.png to GitHub, this will show her at the end!
-        this.load.image('asian_girl', 'girl.png'); 
-    }
+    function preload() {}
 
     function create() {
-        const worldWidth = 4000; 
+        const worldWidth = 4000;
         this.physics.world.setBounds(0, 0, worldWidth, 650);
 
-        // --- 1. DRAW TEXTURES (Emergency Fallbacks) ---
-        // Heart Player
-        let heartGfx = this.make.graphics({x: 0, y: 0, add: false});
-        heartGfx.fillStyle(0xff69b4, 1);
-        heartGfx.fillCircle(10, 10, 10); heartGfx.fillCircle(30, 10, 10);
-        heartGfx.fillTriangle(0, 15, 40, 15, 20, 40);
-        heartGfx.generateTexture('heart', 40, 40);
+        // --- DRAW ASSETS ---
+        // 1. Player Heart
+        let h = this.make.graphics({x: 0, y: 0, add: false});
+        h.fillStyle(0xff69b4, 1);
+        h.fillCircle(10, 10, 10); h.fillCircle(30, 10, 10);
+        h.fillTriangle(0, 15, 40, 15, 20, 40);
+        h.generateTexture('heart', 40, 40);
 
-        // Monster (Sad Blue Square)
-        let monsterGfx = this.make.graphics({x: 0, y: 0, add: false});
-        monsterGfx.fillStyle(0x5dade2, 1); monsterGfx.fillRect(0, 0, 30, 30);
-        monsterGfx.generateTexture('monster', 30, 30);
+        // 2. Tree
+        let tG = this.make.graphics({x: 0, y: 0, add: false});
+        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 20); // Trunk
+        tG.fillStyle(0x2d5a27, 1); tG.fillTriangle(20, 0, 0, 40, 40, 40); // Leaves
+        tG.generateTexture('tree', 40, 60);
 
-        // Pink Brick
-        let brickGfx = this.make.graphics({x: 0, y: 0, add: false});
-        brickGfx.fillStyle(0xffb6c1, 1); brickGfx.fillRect(0, 0, 40, 40);
-        brickGfx.lineStyle(1, 0xffffff, 1); brickGfx.strokeRect(0, 0, 40, 40);
-        brickGfx.generateTexture('brick', 40, 40);
+        // 3. Pink Brick
+        let bG = this.make.graphics({x: 0, y: 0, add: false});
+        bG.fillStyle(0xffb6c1, 1); bG.fillRect(0, 0, 40, 40);
+        bG.lineStyle(1, 0xffffff, 1); bG.strokeRect(0, 0, 40, 40);
+        bG.generateTexture('brick', 40, 40);
 
-        // --- 2. BUILD THE LEVEL ---
+        // 4. Monster
+        let mG = this.make.graphics({x: 0, y: 0, add: false});
+        mG.fillStyle(0x5dade2, 1); mG.fillRect(0, 0, 30, 30);
+        mG.generateTexture('monster', 30, 30);
+
+        // --- BACKGROUND TREES ---
+        for (let i = 0; i < worldWidth; i += 300) {
+            this.add.image(i + Phaser.Math.Between(0, 100), 520, 'tree').setAlpha(0.6).setScale(1.5);
+        }
+
+        // --- LEVEL DESIGN (Playable Path) ---
         platforms = this.physics.add.staticGroup();
+        
+        // Ground with safe-sized gaps
         for (let x = 0; x < worldWidth; x += 40) {
-            // DEADLY PITS (Gaps in the floor)
-            if ((x > 1200 && x < 1500) || (x > 2600 && x < 3000)) continue;
+            if ((x > 1000 && x < 1200) || (x > 2200 && x < 2450)) continue;
             platforms.create(x, 580, 'brick');
         }
 
-        // Floating Platforms
-        [800, 1600, 2200, 3100].forEach(x => {
-            platforms.create(x, 400, 'brick');
-            platforms.create(x + 40, 400, 'brick');
-        });
-
-        // --- 3. ENEMIES ---
-        monsters = this.physics.add.group();
-        [900, 1900, 3300].forEach(x => {
-            let m = monsters.create(x, 500, 'monster');
-            m.setBounce(1);
-            m.setCollideWorldBounds(true);
-            m.setVelocityX(-150);
-        });
-
-        // --- 4. PLAYER ---
-        player = this.physics.add.sprite(100, 450, 'heart');
-        player.setCollideWorldBounds(true);
-
-        // --- 5. THE GOAL (Castle + Girl) ---
-        goal = this.physics.add.staticSprite(3900, 500, 'brick').setTint(0xffd700).setScale(2);
-        if (this.textures.exists('asian_girl')) {
-            this.add.image(3900, 450, 'asian_girl').setScale(1.5);
-        }
-
-        // --- 6. CAMERA & PHYSICS ---
-        this.cameras.main.setBounds(0, 0, worldWidth, 600);
-        this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        
-        this.physics.add.collider(player, platforms);
-        this.physics.add.collider(monsters, platforms);
-        
-        // Death logic
-        this.physics.add.overlap(player, monsters, handleDeath, null, this);
-        this.physics.add.overlap(player, goal, handleWin, null, this);
-
-        cursors = this.input.keyboard.createCursorKeys();
-    }
-
-    function update() {
-        if (isWon) return;
-
-        // Basic Movement
-        if (cursors.left.isDown) player.setVelocityX(-250);
-        else if (cursors.right.isDown) player.setVelocityX(250);
-        else player.setVelocityX(0);
-
-        // Jumping + Double Jump Logic
-        const didPressJump = Phaser.Input.Keyboard.JustDown(cursors.up);
-
-        if (player.body.touching.down) {
-            canDoubleJump = true;
-            if (didPressJump) player.setVelocityY(-600);
-        } else if (didPressJump && canDoubleJump) {
-            canDoubleJump = false;
-            player.setVelocityY(-500); // The second jump
-        }
-
-        // Check for falling in pit
-        if (player.y > 620) handleDeath.call(this);
-
-        // Monster AI (Turn around at edges)
-        monsters.children.iterate(m => {
-            if (m.body.blocked.left) m.setVelocityX(150);
-            if (m.body.blocked.right) m.setVelocityX(-150);
-        });
-    }
-
-    function handleDeath() {
-        this.cameras.main.shake(100, 0.01);
-        player.setPosition(100, 450);
-        player.setVelocity(0, 0);
-    }
-
-    function handleWin() {
-        if (isWon) return;
-        isWon = true;
-        this.physics.pause();
-        
-        this.add.text(400, 300, 'CONGRATS!\nWill you be my Valentine?', { 
-            fontSize: '40px', fill: '#ff0066', align: 'center', 
-            backgroundColor: '#ffffff', padding: 20, fontStyle: 'bold'
-        }).setOrigin(0.5).setScrollFactor(0);
-    }
-</script>
-</body>
-</html>
+        // Mid-air platforms to help cross

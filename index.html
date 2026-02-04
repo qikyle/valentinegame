@@ -2,72 +2,110 @@
 <html>
 <head>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>body { margin: 0; background: #ffdef2; }</style>
 </head>
-<body style="margin: 0; background: #ffdef2;">
+<body>
 <script>
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 600 } } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 1000 } } },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player, platforms, cursors, heart;
+    let player, platforms, cursors, finishLine;
 
     function preload() {
-        // We are leaving this empty to prove the game works without external files!
+        // We'll generate textures in 'create' so you don't need external files!
     }
 
     function create() {
+        // 1. SET THE WORLD SIZE (Long like Mario)
+        const worldWidth = 3000;
+        this.physics.world.setBounds(0, 0, worldWidth, 600);
+
+        // 2. GENERATE TEXTURES
+        // Pink Heart Player
+        let heartGfx = this.make.graphics({x: 0, y: 0, add: false});
+        heartGfx.fillStyle(0xff69b4, 1); // Hot Pink
+        heartGfx.fillCircle(15, 15, 15);
+        heartGfx.fillCircle(45, 15, 15);
+        heartGfx.fillTriangle(0, 20, 60, 20, 30, 60);
+        heartGfx.generateTexture('heartPlayer', 60, 60);
+
+        // Platform Block
+        let blockGfx = this.make.graphics({x: 0, y: 0, add: false});
+        blockGfx.fillStyle(0xff85c1, 1);
+        blockGfx.fillRect(0, 0, 40, 40);
+        blockGfx.lineStyle(2, 0xffffff, 1);
+        blockGfx.strokeRect(0, 0, 40, 40);
+        blockGfx.generateTexture('block', 40, 40);
+
+        // 3. CREATE PLATFORMS (Mario Level Design)
         platforms = this.physics.add.staticGroup();
 
-        // Creating a "Ground" using a pink rectangle (No image needed!)
-        let ground = this.add.rectangle(400, 580, 800, 40, 0xff69b4);
-        this.physics.add.existing(ground, true);
-        platforms.add(ground);
+        // Solid Ground
+        for (let x = 0; x < worldWidth; x += 40) {
+            platforms.create(x, 580, 'block');
+        }
 
-        // Creating a platform
-        let plat1 = this.add.rectangle(600, 400, 200, 20, 0xff69b4);
-        this.physics.add.existing(plat1, true);
-        platforms.add(plat1);
+        // Mario-style Platform "Steps" & Challenges
+        platforms.create(400, 450, 'block');
+        platforms.create(440, 450, 'block');
+        
+        platforms.create(700, 350, 'block');
+        platforms.create(740, 350, 'block');
+        platforms.create(780, 350, 'block');
 
-        // The Player: A Purple Square (Representing your Pixel Girl for now)
-        player = this.physics.add.sprite(100, 450);
-        player.setOrigin(0.5);
-        // Create a simple rectangle graphics for the player
-        let playerGraphics = this.make.graphics({x: 0, y: 0, add: false});
-        playerGraphics.fillStyle(0x9b59b6, 1);
-        playerGraphics.fillRect(0, 0, 32, 48);
-        playerGraphics.generateTexture('girl_temp', 32, 48);
-        player.setTexture('girl_temp');
+        platforms.create(1100, 450, 'block');
+        platforms.create(1250, 300, 'block');
+        platforms.create(1400, 450, 'block');
 
+        // A "Staircase" at the end
+        for(let i = 0; i < 5; i++) {
+            for(let j = 0; j <= i; j++) {
+                platforms.create(2200 + (i * 40), 540 - (j * 40), 'block');
+            }
+        }
+
+        // 4. THE PLAYER (The Pink Heart)
+        player = this.physics.add.sprite(100, 450, 'heartPlayer').setScale(0.6);
         player.setCollideWorldBounds(true);
 
-        // The Goal: A Red Square (Representing the Heart)
-        heart = this.physics.add.sprite(700, 300);
-        let heartGraphics = this.make.graphics({x: 0, y: 0, add: false});
-        heartGraphics.fillStyle(0xff0000, 1);
-        heartGraphics.fillRect(0, 0, 30, 30);
-        heartGraphics.generateTexture('heart_temp', 30, 30);
-        heart.setTexture('heart_temp');
+        // 5. THE FINISH LINE (Asian Girl Pixel Placeholder)
+        // We'll use a gold block to represent the finish for now
+        finishLine = this.physics.add.sprite(2800, 500, 'block').setTint(0xffd700);
+        
+        // 6. CAMERA SETUP
+        this.cameras.main.setBounds(0, 0, worldWidth, 600);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
 
+        // 7. PHYSICS
         this.physics.add.collider(player, platforms);
-        this.physics.add.overlap(player, heart, () => {
-            this.add.text(200, 250, 'Congrats on being\nmy Valentine!', { 
-                fontSize: '40px', fill: '#ff0066', backgroundColor: '#ffffff' 
-            });
-            this.physics.pause();
-        }, null, this);
+        this.physics.add.collider(finishLine, platforms);
+        this.physics.add.overlap(player, finishLine, winGame, null, this);
 
         cursors = this.input.keyboard.createCursorKeys();
     }
 
     function update() {
-        if (cursors.left.isDown) player.setVelocityX(-160);
-        else if (cursors.right.isDown) player.setVelocityX(160);
+        if (cursors.left.isDown) player.setVelocityX(-250);
+        else if (cursors.right.isDown) player.setVelocityX(250);
         else player.setVelocityX(0);
-        if (cursors.up.isDown && player.body.touching.down) player.setVelocityY(-400);
+
+        if (cursors.up.isDown && player.body.touching.down) {
+            player.setVelocityY(-600);
+        }
+    }
+
+    function winGame() {
+        this.physics.pause();
+        let msg = this.add.text(player.x, 300, 'You reached me!\nWill you be my Valentine?', { 
+            fontSize: '32px', fill: '#ff0066', align: 'center', 
+            backgroundColor: '#ffffff', padding: 20
+        });
+        msg.setOrigin(0.5);
     }
 </script>
 </body>

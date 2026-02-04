@@ -2,89 +2,87 @@
 <html>
 <head>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
-    <style>body { margin: 0; background: #ffdef2; }</style>
+    <style>body { margin: 0; background: #ffdef2; overflow: hidden; }</style>
 </head>
 <body>
 <script>
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 1000 } } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player, platforms, cursors, finishLine;
+    let player, platforms, cursors, castle, clouds;
 
     function preload() {
-        // We'll generate textures in 'create' so you don't need external files!
+        // No external files needed - we draw everything with code!
     }
 
     function create() {
-        // 1. SET THE WORLD SIZE (Long like Mario)
-        const worldWidth = 3000;
-        this.physics.world.setBounds(0, 0, worldWidth, 600);
+        const worldWidth = 4000;
+        this.physics.world.setBounds(0, 0, worldWidth, 700);
 
-        // 2. GENERATE TEXTURES
-        // Pink Heart Player
+        // --- 1. GENERATE TEXTURES ---
+        // Heart Player
         let heartGfx = this.make.graphics({x: 0, y: 0, add: false});
-        heartGfx.fillStyle(0xff69b4, 1); // Hot Pink
-        heartGfx.fillCircle(15, 15, 15);
-        heartGfx.fillCircle(45, 15, 15);
-        heartGfx.fillTriangle(0, 20, 60, 20, 30, 60);
-        heartGfx.generateTexture('heartPlayer', 60, 60);
+        heartGfx.fillStyle(0xff69b4, 1);
+        heartGfx.fillCircle(10, 10, 10); heartGfx.fillCircle(30, 10, 10);
+        heartGfx.fillTriangle(0, 15, 40, 15, 20, 40);
+        heartGfx.generateTexture('heart', 40, 40);
 
-        // Platform Block
+        // Platform Block (Cute Pink Brick)
         let blockGfx = this.make.graphics({x: 0, y: 0, add: false});
-        blockGfx.fillStyle(0xff85c1, 1);
-        blockGfx.fillRect(0, 0, 40, 40);
-        blockGfx.lineStyle(2, 0xffffff, 1);
-        blockGfx.strokeRect(0, 0, 40, 40);
-        blockGfx.generateTexture('block', 40, 40);
+        blockGfx.fillStyle(0xffb6c1, 1); blockGfx.fillRect(0, 0, 40, 40);
+        blockGfx.lineStyle(2, 0xffffff, 1); blockGfx.strokeRect(0, 0, 40, 40);
+        blockGfx.generateTexture('brick', 40, 40);
 
-        // 3. CREATE PLATFORMS (Mario Level Design)
+        // Castle Texture
+        let castleGfx = this.make.graphics({x: 0, y: 0, add: false});
+        castleGfx.fillStyle(0xffffff, 1);
+        castleGfx.fillRect(0, 40, 120, 80); // Base
+        castleGfx.fillRect(0, 0, 30, 40); castleGfx.fillRect(90, 0, 30, 40); // Towers
+        castleGfx.fillStyle(0xff0066, 1);
+        castleGfx.fillTriangle(0, 0, 30, 0, 15, -20); // Roofs
+        castleGfx.fillTriangle(90, 0, 120, 0, 105, -20);
+        castleGfx.generateTexture('castle', 120, 120);
+
+        // --- 2. BUILD THE LEVEL ---
         platforms = this.physics.add.staticGroup();
 
-        // Solid Ground
+        // Ground with Gaps (The Pits of Death!)
         for (let x = 0; x < worldWidth; x += 40) {
-            platforms.create(x, 580, 'block');
+            // Create a gap between 1000-1200 and 2000-2300
+            if ((x > 1000 && x < 1200) || (x > 2000 && x < 2300)) continue;
+            platforms.create(x, 580, 'brick');
         }
 
-        // Mario-style Platform "Steps" & Challenges
-        platforms.create(400, 450, 'block');
-        platforms.create(440, 450, 'block');
+        // Random Floating Platforms
+        const platPositions = [
+            [500, 450], [650, 350], [850, 450], 
+            [1100, 300], [1300, 400], [1600, 300],
+            [1900, 450], [2150, 350], [2400, 250], [2600, 450]
+        ];
+        platPositions.forEach(pos => {
+            platforms.create(pos[0], pos[1], 'brick');
+            platforms.create(pos[0]+40, pos[1], 'brick');
+        });
+
+        // --- 3. THE GRAND FINALE ---
+        castle = this.physics.add.staticSprite(3800, 500, 'castle');
         
-        platforms.create(700, 350, 'block');
-        platforms.create(740, 350, 'block');
-        platforms.create(780, 350, 'block');
+        // --- 4. THE PLAYER ---
+        player = this.physics.add.sprite(100, 400, 'heart');
+        player.setCollideWorldBounds(false); // Allow falling off bottom
 
-        platforms.create(1100, 450, 'block');
-        platforms.create(1250, 300, 'block');
-        platforms.create(1400, 450, 'block');
-
-        // A "Staircase" at the end
-        for(let i = 0; i < 5; i++) {
-            for(let j = 0; j <= i; j++) {
-                platforms.create(2200 + (i * 40), 540 - (j * 40), 'block');
-            }
-        }
-
-        // 4. THE PLAYER (The Pink Heart)
-        player = this.physics.add.sprite(100, 450, 'heartPlayer').setScale(0.6);
-        player.setCollideWorldBounds(true);
-
-        // 5. THE FINISH LINE (Asian Girl Pixel Placeholder)
-        // We'll use a gold block to represent the finish for now
-        finishLine = this.physics.add.sprite(2800, 500, 'block').setTint(0xffd700);
-        
-        // 6. CAMERA SETUP
+        // --- 5. CAMERA & PHYSICS ---
         this.cameras.main.setBounds(0, 0, worldWidth, 600);
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        this.cameras.main.setBackgroundColor('#ffdef2');
 
-        // 7. PHYSICS
         this.physics.add.collider(player, platforms);
-        this.physics.add.collider(finishLine, platforms);
-        this.physics.add.overlap(player, finishLine, winGame, null, this);
+        this.physics.add.overlap(player, castle, winGame, null, this);
 
         cursors = this.input.keyboard.createCursorKeys();
     }
@@ -94,18 +92,34 @@
         else if (cursors.right.isDown) player.setVelocityX(250);
         else player.setVelocityX(0);
 
-        if (cursors.up.isDown && player.body.touching.down) {
-            player.setVelocityY(-600);
+        if (cursors.up.isDown && player.body.touching.down) player.setVelocityY(-650);
+
+        // DIE CONDITION: If player falls below the screen
+        if (player.y > 650) {
+            die.call(this);
         }
+    }
+
+    function die() {
+        // Reset player to start
+        player.setPosition(100, 400);
+        player.setVelocity(0, 0);
+        this.cameras.main.flash(500, 255, 0, 0); // Red flash
     }
 
     function winGame() {
         this.physics.pause();
-        let msg = this.add.text(player.x, 300, 'You reached me!\nWill you be my Valentine?', { 
-            fontSize: '32px', fill: '#ff0066', align: 'center', 
-            backgroundColor: '#ffffff', padding: 20
-        });
-        msg.setOrigin(0.5);
+        // Create a grand celebration text
+        let winText = this.add.text(player.x, 300, '🏰 YOU MADE IT! 🏰\nWill you be my Valentine?', { 
+            fontSize: '40px', fill: '#ff0066', align: 'center', 
+            backgroundColor: '#ffffff', padding: 20, fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Add "Confetti" hearts
+        for(let i=0; i<30; i++) {
+            this.add.text(player.x + Phaser.Math.Between(-400, 400), 
+                          Phaser.Math.Between(0, 600), '❤️', { fontSize: '24px' });
+        }
     }
 </script>
 </body>

@@ -10,7 +10,7 @@
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 900 } } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } }, // Higher gravity for tighter control
         scene: { preload: preload, create: create, update: update }
     };
 
@@ -20,37 +20,104 @@
     function preload() {}
 
     function create() {
-        const worldWidth = 4000;
+        const worldWidth = 6000; 
         this.physics.world.setBounds(0, 0, worldWidth, 650);
 
-        // --- 1. DRAW TEXTURES ---
-        // Player Heart
+        // --- ASSETS ---
         let hG = this.make.graphics({x: 0, y: 0, add: false});
         hG.fillStyle(0xff69b4, 1);
         hG.fillCircle(10, 10, 10); hG.fillCircle(30, 10, 10);
         hG.fillTriangle(0, 15, 40, 15, 20, 40);
         hG.generateTexture('heart', 40, 40);
 
-        // Cherry Blossom Tree
         let tG = this.make.graphics({x: 0, y: 0, add: false});
-        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 40); // Trunk
-        tG.fillStyle(0xff99cc, 1); tG.fillCircle(20, 25, 25); // Pink Top
+        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 40);
+        tG.fillStyle(0xff99cc, 1); tG.fillCircle(20, 25, 25);
         tG.generateTexture('tree', 40, 80);
 
-        // Platform Brick
         let bG = this.make.graphics({x: 0, y: 0, add: false});
-        bG.fillStyle(0xffffff, 1); bG.fillRect(0, 0, 40, 40);
-        bG.lineStyle(2, 0xffb6c1, 1); bG.strokeRect(0, 0, 40, 40);
-        bG.generateTexture('brick', 40, 40);
+        bG.fillStyle(0xffffff, 1); bG.fillRect(0, 0, 80, 40); // Standard 80px bricks
+        bG.lineStyle(2, 0xffb6c1, 1); bG.strokeRect(0, 0, 80, 40);
+        bG.generateTexture('brick', 80, 40);
 
-        // --- 2. ADD BACKGROUND DECORATIONS ---
-        // Add trees first so they are in the back
-        for (let i = 0; i < worldWidth; i += 250) {
-            this.add.image(i + Phaser.Math.Between(0, 50), 500, 'tree').setScale(2).setAlpha(0.8);
+        // --- SCENERY ---
+        for (let i = 0; i < worldWidth; i += 300) {
+            this.add.image(i, 510, 'tree').setScale(2).setAlpha(0.6);
         }
 
-        // --- 3. LEVEL DESIGN (Very Easy Mode) ---
+        // --- LEVEL DESIGN (The "Not Impossible" Challenge) ---
         platforms = this.physics.add.staticGroup();
         
-        // Ground with very small, easy gaps
-        for (let x = 0; x < worldWidth; x
+        // Starting Ground
+        for (let x = 0; x < 800; x += 80) platforms.create(x, 580, 'brick');
+
+        // SECTION 1: The Triple Threat (3 floating islands)
+        platforms.create(1100, 450, 'brick');
+        platforms.create(1400, 350, 'brick');
+        platforms.create(1700, 450, 'brick');
+
+        // Ground Recovery
+        for (let x = 1900; x < 2500; x += 80) platforms.create(x, 580, 'brick');
+
+        // SECTION 2: The High Climb (Staircase to the sky)
+        platforms.create(2700, 480, 'brick');
+        platforms.create(2900, 380, 'brick');
+        platforms.create(3100, 280, 'brick');
+        platforms.create(3400, 200, 'brick'); // A long, high jump!
+
+        // SECTION 3: The Leap of Faith (Narrow pillars)
+        platforms.create(3800, 400, 'brick');
+        platforms.create(4100, 400, 'brick');
+        platforms.create(4400, 400, 'brick');
+
+        // Final Dash
+        for (let x = 4700; x < worldWidth; x += 80) platforms.create(x, 580, 'brick');
+
+        // --- PLAYER ---
+        player = this.physics.add.sprite(100, 450, 'heart');
+        player.setCollideWorldBounds(true);
+        
+        this.cameras.main.setBounds(0, 0, worldWidth, 600);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+
+        // --- GOAL ---
+        let goal = this.add.rectangle(worldWidth - 100, 500, 80, 120, 0xff0066);
+        this.physics.add.existing(goal, true);
+
+        this.physics.add.collider(player, platforms);
+        this.physics.add.overlap(player, goal, handleWin, null, this);
+
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (isWon) return;
+
+        if (cursors.left.isDown) player.setVelocityX(-280);
+        else if (cursors.right.isDown) player.setVelocityX(280);
+        else player.setVelocityX(0);
+
+        // Jump Physics: If you hold it, you jump higher (Standard Mario feel)
+        if (cursors.up.isDown && player.body.touching.down) {
+            player.setVelocityY(-650); 
+        }
+
+        // Fall reset
+        if (player.y > 620) {
+            this.cameras.main.flash(200, 255, 0, 0);
+            player.setPosition(100, 450);
+        }
+    }
+
+    function handleWin() {
+        if (isWon) return;
+        isWon = true;
+        this.physics.pause();
+        this.add.text(400, 300, '💖 EPIC WIN! 💖\nWill you be my Valentine?', { 
+            fontSize: '40px', fill: '#ff0066', align: 'center', 
+            backgroundColor: '#ffffff', padding: 25, fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0);
+    }
+</script>
+</body>
+</html>

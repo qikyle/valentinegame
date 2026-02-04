@@ -102,3 +102,32 @@
 
     function update() {
         if (isWon) return;
+        if (cursors.left.isDown) player.setVelocityX(-250);
+        else if (cursors.right.isDown) player.setVelocityX(250);
+        else player.setVelocityX(0);
+
+        if (cursors.up.isDown && player.body.touching.down) {
+            player.setVelocityY(-680); // Stronger jump for easier play
+        }
+
+        if (player.y > 620) player.setPosition(100, 450);
+
+        monsters.children.iterate(m => {
+            if (m.body.blocked.left) m.setVelocityX(100);
+            if (m.body.blocked.right) m.setVelocityX(-100);
+        });
+    }
+
+    function handleWin() {
+        if (isWon) return;
+        isWon = true;
+        this.physics.pause();
+        this.add.text(400, 300, '💖 YOU MADE IT! 💖\nWill you be my Valentine?', { 
+            fontSize: '40px', fill: '#ff0066', align: 'center', 
+            backgroundColor: '#ffffff', padding: 25, fontStyle: 'bold',
+            stroke: '#ffb6c1', strokeThickness: 6
+        }).setOrigin(0.5).setScrollFactor(0);
+    }
+</script>
+</body>
+</html>

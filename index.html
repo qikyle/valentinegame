@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
-    <style>body { margin: 0; background: #ffdef2; overflow: hidden; }</style>
+    <style>body { margin: 0; background: #ffe6f2; overflow: hidden; }</style>
 </head>
 <body>
 <script>
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 1100 } } },
         scene: { preload: preload, create: create, update: update }
     };
 
@@ -20,46 +20,85 @@
     function preload() {}
 
     function create() {
-        const worldWidth = 4000;
+        const worldWidth = 5000; // Even longer for a better journey
         this.physics.world.setBounds(0, 0, worldWidth, 650);
 
         // --- DRAW ASSETS ---
-        // 1. Player Heart
+        // Player
         let h = this.make.graphics({x: 0, y: 0, add: false});
         h.fillStyle(0xff69b4, 1);
         h.fillCircle(10, 10, 10); h.fillCircle(30, 10, 10);
         h.fillTriangle(0, 15, 40, 15, 20, 40);
         h.generateTexture('heart', 40, 40);
 
-        // 2. Tree
+        // Background Hearts (Cute detail)
+        let bgH = this.make.graphics({x: 0, y: 0, add: false});
+        bgH.fillStyle(0xffffff, 0.3);
+        bgH.fillCircle(5, 5, 5); bgH.fillCircle(15, 5, 5);
+        bgH.fillTriangle(0, 8, 20, 8, 10, 20);
+        bgH.generateTexture('bgHeart', 20, 20);
+
+        // Tree
         let tG = this.make.graphics({x: 0, y: 0, add: false});
-        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 20); // Trunk
-        tG.fillStyle(0x2d5a27, 1); tG.fillTriangle(20, 0, 0, 40, 40, 40); // Leaves
+        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 20);
+        tG.fillStyle(0xff99cc, 1); tG.fillCircle(20, 20, 20); // Pink Blossom Trees
         tG.generateTexture('tree', 40, 60);
 
-        // 3. Pink Brick
+        // Platform
         let bG = this.make.graphics({x: 0, y: 0, add: false});
-        bG.fillStyle(0xffb6c1, 1); bG.fillRect(0, 0, 40, 40);
-        bG.lineStyle(1, 0xffffff, 1); bG.strokeRect(0, 0, 40, 40);
+        bG.fillStyle(0xffffff, 1); bG.fillRect(0, 0, 40, 40);
+        bG.lineStyle(2, 0xffb6c1, 1); bG.strokeRect(0, 0, 40, 40);
         bG.generateTexture('brick', 40, 40);
 
-        // 4. Monster
-        let mG = this.make.graphics({x: 0, y: 0, add: false});
-        mG.fillStyle(0x5dade2, 1); mG.fillRect(0, 0, 30, 30);
-        mG.generateTexture('monster', 30, 30);
-
-        // --- BACKGROUND TREES ---
-        for (let i = 0; i < worldWidth; i += 300) {
-            this.add.image(i + Phaser.Math.Between(0, 100), 520, 'tree').setAlpha(0.6).setScale(1.5);
+        // --- DECORATIONS ---
+        for (let i = 0; i < worldWidth; i += 200) {
+            this.add.image(i, Phaser.Math.Between(100, 400), 'bgHeart').setScrollFactor(0.5);
+            if (i % 400 === 0) this.add.image(i + 50, 530, 'tree').setScale(1.5);
         }
 
-        // --- LEVEL DESIGN (Playable Path) ---
+        // --- LEVEL DESIGN ---
         platforms = this.physics.add.staticGroup();
         
-        // Ground with safe-sized gaps
+        // Ground with very small, manageable gaps
         for (let x = 0; x < worldWidth; x += 40) {
-            if ((x > 1000 && x < 1200) || (x > 2200 && x < 2450)) continue;
+            if ((x > 1200 && x < 1320) || (x > 2600 && x < 2750) || (x > 3800 && x < 4000)) continue;
             platforms.create(x, 580, 'brick');
         }
 
-        // Mid-air platforms to help cross
+        // Complex but easy "staircase" jumps
+        const jumpHelp = [
+            [1220, 460], [1260, 340], [1300, 460], // Floating bridge over first gap
+            [1800, 450], [1950, 350], [2100, 450], // Triangle jump
+            [2640, 460], [2700, 340], [2760, 460], // Bridge over second gap
+            [3300, 450], [3400, 350], [3500, 250], [3600, 150] // High staircase
+        ];
+        jumpHelp.forEach(pos => {
+            platforms.create(pos[0], pos[1], 'brick');
+        });
+
+        // --- ENEMIES ---
+        monsters = this.physics.add.group();
+        [1000, 2000, 3200, 4200].forEach(x => {
+            let enemy = monsters.create(x, 500, 'heart').setTint(0x5dade2).setScale(0.6);
+            enemy.setBounce(1).setCollideWorldBounds(true).setVelocityX(-100);
+        });
+
+        // --- GOAL ---
+        player = this.physics.add.sprite(100, 450, 'heart');
+        goal = this.add.rectangle(4900, 500, 80, 120, 0xff0066); // Grand pink door
+        this.physics.add.existing(goal, true);
+
+        // --- CAMERA ---
+        this.cameras.main.setBounds(0, 0, worldWidth, 600);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(monsters, platforms);
+        this.physics.add.overlap(player, monsters, () => player.setPosition(100, 450));
+        this.physics.add.overlap(player, goal, handleWin, null, this);
+
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (isWon) return;

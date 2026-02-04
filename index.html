@@ -10,124 +10,47 @@
     const config = {
         type: Phaser.AUTO,
         width: 800, height: 600,
-        physics: { default: 'arcade', arcade: { gravity: { y: 1100 } } },
+        physics: { default: 'arcade', arcade: { gravity: { y: 900 } } },
         scene: { preload: preload, create: create, update: update }
     };
 
     const game = new Phaser.Game(config);
-    let player, platforms, cursors, monsters, goal, isWon = false;
+    let player, platforms, cursors, isWon = false;
 
     function preload() {}
 
     function create() {
-        const worldWidth = 5000; // Even longer for a better journey
+        const worldWidth = 4000;
         this.physics.world.setBounds(0, 0, worldWidth, 650);
 
-        // --- DRAW ASSETS ---
-        // Player
-        let h = this.make.graphics({x: 0, y: 0, add: false});
-        h.fillStyle(0xff69b4, 1);
-        h.fillCircle(10, 10, 10); h.fillCircle(30, 10, 10);
-        h.fillTriangle(0, 15, 40, 15, 20, 40);
-        h.generateTexture('heart', 40, 40);
+        // --- 1. DRAW TEXTURES ---
+        // Player Heart
+        let hG = this.make.graphics({x: 0, y: 0, add: false});
+        hG.fillStyle(0xff69b4, 1);
+        hG.fillCircle(10, 10, 10); hG.fillCircle(30, 10, 10);
+        hG.fillTriangle(0, 15, 40, 15, 20, 40);
+        hG.generateTexture('heart', 40, 40);
 
-        // Background Hearts (Cute detail)
-        let bgH = this.make.graphics({x: 0, y: 0, add: false});
-        bgH.fillStyle(0xffffff, 0.3);
-        bgH.fillCircle(5, 5, 5); bgH.fillCircle(15, 5, 5);
-        bgH.fillTriangle(0, 8, 20, 8, 10, 20);
-        bgH.generateTexture('bgHeart', 20, 20);
-
-        // Tree
+        // Cherry Blossom Tree
         let tG = this.make.graphics({x: 0, y: 0, add: false});
-        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 20);
-        tG.fillStyle(0xff99cc, 1); tG.fillCircle(20, 20, 20); // Pink Blossom Trees
-        tG.generateTexture('tree', 40, 60);
+        tG.fillStyle(0x8B4513, 1); tG.fillRect(15, 40, 10, 40); // Trunk
+        tG.fillStyle(0xff99cc, 1); tG.fillCircle(20, 25, 25); // Pink Top
+        tG.generateTexture('tree', 40, 80);
 
-        // Platform
+        // Platform Brick
         let bG = this.make.graphics({x: 0, y: 0, add: false});
         bG.fillStyle(0xffffff, 1); bG.fillRect(0, 0, 40, 40);
         bG.lineStyle(2, 0xffb6c1, 1); bG.strokeRect(0, 0, 40, 40);
         bG.generateTexture('brick', 40, 40);
 
-        // --- DECORATIONS ---
-        for (let i = 0; i < worldWidth; i += 200) {
-            this.add.image(i, Phaser.Math.Between(100, 400), 'bgHeart').setScrollFactor(0.5);
-            if (i % 400 === 0) this.add.image(i + 50, 530, 'tree').setScale(1.5);
+        // --- 2. ADD BACKGROUND DECORATIONS ---
+        // Add trees first so they are in the back
+        for (let i = 0; i < worldWidth; i += 250) {
+            this.add.image(i + Phaser.Math.Between(0, 50), 500, 'tree').setScale(2).setAlpha(0.8);
         }
 
-        // --- LEVEL DESIGN ---
+        // --- 3. LEVEL DESIGN (Very Easy Mode) ---
         platforms = this.physics.add.staticGroup();
         
-        // Ground with very small, manageable gaps
-        for (let x = 0; x < worldWidth; x += 40) {
-            if ((x > 1200 && x < 1320) || (x > 2600 && x < 2750) || (x > 3800 && x < 4000)) continue;
-            platforms.create(x, 580, 'brick');
-        }
-
-        // Complex but easy "staircase" jumps
-        const jumpHelp = [
-            [1220, 460], [1260, 340], [1300, 460], // Floating bridge over first gap
-            [1800, 450], [1950, 350], [2100, 450], // Triangle jump
-            [2640, 460], [2700, 340], [2760, 460], // Bridge over second gap
-            [3300, 450], [3400, 350], [3500, 250], [3600, 150] // High staircase
-        ];
-        jumpHelp.forEach(pos => {
-            platforms.create(pos[0], pos[1], 'brick');
-        });
-
-        // --- ENEMIES ---
-        monsters = this.physics.add.group();
-        [1000, 2000, 3200, 4200].forEach(x => {
-            let enemy = monsters.create(x, 500, 'heart').setTint(0x5dade2).setScale(0.6);
-            enemy.setBounce(1).setCollideWorldBounds(true).setVelocityX(-100);
-        });
-
-        // --- GOAL ---
-        player = this.physics.add.sprite(100, 450, 'heart');
-        goal = this.add.rectangle(4900, 500, 80, 120, 0xff0066); // Grand pink door
-        this.physics.add.existing(goal, true);
-
-        // --- CAMERA ---
-        this.cameras.main.setBounds(0, 0, worldWidth, 600);
-        this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        
-        this.physics.add.collider(player, platforms);
-        this.physics.add.collider(monsters, platforms);
-        this.physics.add.overlap(player, monsters, () => player.setPosition(100, 450));
-        this.physics.add.overlap(player, goal, handleWin, null, this);
-
-        cursors = this.input.keyboard.createCursorKeys();
-    }
-
-    function update() {
-        if (isWon) return;
-        if (cursors.left.isDown) player.setVelocityX(-250);
-        else if (cursors.right.isDown) player.setVelocityX(250);
-        else player.setVelocityX(0);
-
-        if (cursors.up.isDown && player.body.touching.down) {
-            player.setVelocityY(-680); // Stronger jump for easier play
-        }
-
-        if (player.y > 620) player.setPosition(100, 450);
-
-        monsters.children.iterate(m => {
-            if (m.body.blocked.left) m.setVelocityX(100);
-            if (m.body.blocked.right) m.setVelocityX(-100);
-        });
-    }
-
-    function handleWin() {
-        if (isWon) return;
-        isWon = true;
-        this.physics.pause();
-        this.add.text(400, 300, '💖 YOU MADE IT! 💖\nWill you be my Valentine?', { 
-            fontSize: '40px', fill: '#ff0066', align: 'center', 
-            backgroundColor: '#ffffff', padding: 25, fontStyle: 'bold',
-            stroke: '#ffb6c1', strokeThickness: 6
-        }).setOrigin(0.5).setScrollFactor(0);
-    }
-</script>
-</body>
-</html>
+        // Ground with very small, easy gaps
+        for (let x = 0; x < worldWidth; x
